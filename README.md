@@ -1,13 +1,7 @@
-## Running the React App in Docker
+### `npm start`
 
-### Prerequisites
+Runs the app in the development mode.\
+Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
 
-- Docker installed on your machine.
-
-### Steps to Run the App
-
-1. **Clone the repository:**
-   ```bash
-   git clone <repository-url>
-   cd <project-directory>
-   ```
+The page will reload when you make changes.\
+You may also see any lint errors in the console.

@@ -6,21 +6,17 @@ const API_KEYS = {
   nyTimes: process.env.REACT_APP_NYTIMES_API_KEY,
 };
 
-console.log("API_KEYS", API_KEYS);
-
 const BASE_URLS = {
-  newsAPI: "https://newsapi.org/v2",
+  newsAPI: "https://gnews.io/api/v4",
   guardian: "https://content.guardianapis.com",
   nyTimes: "https://api.nytimes.com/svc/search/v2",
 };
-
 export const fetchArticlesBySearch = async (query, filters) => {
   const { date = "" } = filters;
 
   const searchQuery = query || "general";
-  const endpoint = "everything";
-
-  const url = `${BASE_URLS.newsAPI}/${endpoint}?q=${searchQuery}&apiKey=${API_KEYS.newsAPI}`;
+  const endpoint = "search";
+  const url = `${BASE_URLS.newsAPI}/${endpoint}?q=${searchQuery}&apikey=${API_KEYS.newsAPI}`;
 
   try {
     const response = await axios.get(url);
@@ -30,6 +26,7 @@ export const fetchArticlesBySearch = async (query, filters) => {
     throw error;
   }
 };
+
 export const fetchArticlesByCategory = async (filters) => {
   const { category = "", country = "us" } = filters;
 
@@ -39,7 +36,7 @@ export const fetchArticlesByCategory = async (filters) => {
   }
 
   const endpoint = "top-headlines";
-  const url = `${BASE_URLS.newsAPI}/${endpoint}?country=${country}&category=${category}&apiKey=${API_KEYS.newsAPI}`;
+  const url = `${BASE_URLS.newsAPI}/${endpoint}?category=${category}&country=${country}&apikey=${API_KEYS.newsAPI}`;
 
   try {
     const response = await axios.get(url);
@@ -52,8 +49,7 @@ export const fetchArticlesByCategory = async (filters) => {
 
 export const fetchTopHeadlines = async () => {
   const endpoint = "top-headlines";
-
-  const url = `${BASE_URLS.newsAPI}/${endpoint}?country=us&pageSize=30&apiKey=${API_KEYS.newsAPI}`;
+  const url = `${BASE_URLS.newsAPI}/${endpoint}?category=general&lang=en&country=in&max=30&apikey=${API_KEYS.newsAPI}`;
 
   try {
     const response = await axios.get(url);
@@ -63,7 +59,6 @@ export const fetchTopHeadlines = async () => {
     throw error;
   }
 };
-
 export const fetchFromGuardian = async (query, filters) => {
   const { date = "" } = filters;
   const searchQuery = query || "news";
@@ -72,13 +67,19 @@ export const fetchFromGuardian = async (query, filters) => {
   const url = `${BASE_URLS.guardian}/search?q=${searchQuery}${dateParam}&api-key=${API_KEYS.guardian}`;
   try {
     const response = await axios.get(url);
-    return response.data.response.results;
+    return response.data.response.results.map((article) => ({
+      title: article.webTitle,
+      url: article.webUrl,
+      source: "Guardian",
+      publishedAt: article.webPublicationDate,
+    }));
   } catch (error) {
     console.error("Error fetching articles from Guardian:", error.message);
-    throw error;
+    return [];
   }
 };
 
+// Fetch articles from NYTimes API
 export const fetchFromNYTimes = async (query, filters) => {
   const { date = "" } = filters;
   const searchQuery = query || "news";
@@ -87,9 +88,29 @@ export const fetchFromNYTimes = async (query, filters) => {
   const url = `${BASE_URLS.nyTimes}/articlesearch.json?q=${searchQuery}${dateParam}&api-key=${API_KEYS.nyTimes}`;
   try {
     const response = await axios.get(url);
-    return response.data.response.docs;
+    return response.data.response.docs.map((article) => ({
+      title: article.headline.main,
+      url: article.web_url,
+      source: "NYTimes",
+      publishedAt: article.pub_date,
+    }));
   } catch (error) {
     console.error("Error fetching articles from NYTimes:", error.message);
+    return [];
+  }
+};
+
+// Aggregate results from Guardian and NYTimes
+export const fetchAggregatedArticles = async (query, filters) => {
+  try {
+    const [newsapi, guardianArticles, nyTimesArticles] = await Promise.all([
+      fetchFromGuardian(query, filters),
+      fetchFromNYTimes(query, filters),
+      fetchArticlesBySearch(query, filters),
+    ]);
+    return [...newsapi, ...guardianArticles, ...nyTimesArticles];
+  } catch (error) {
+    console.error("Error aggregating articles:", error.message);
     throw error;
   }
 };

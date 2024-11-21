@@ -3,7 +3,7 @@ import SearchBar from "../components/SearchBar";
 import FilterPanel from "../components/FilterPanel";
 import NewsFeed from "../components/NewsFeed";
 import {
-  fetchArticlesBySearch,
+  fetchAggregatedArticles,
   fetchArticlesByCategory,
   fetchTopHeadlines,
 } from "../services/newsApi";
@@ -15,14 +15,19 @@ const HomePage = () => {
     category: "",
     date: "",
   });
+  const [isSearchActive, setIsSearchActive] = useState(false);
 
   useEffect(() => {
     fetchTopNews();
   }, []);
 
   useEffect(() => {
-    if (filters.category) {
-      fetchCategoryArticles(filters);
+    if (!isSearchActive) {
+      if (filters.category) {
+        fetchCategoryArticles(filters);
+      } else {
+        fetchTopNews();
+      }
     }
   }, [filters]);
 
@@ -30,6 +35,7 @@ const HomePage = () => {
     try {
       const topArticles = await fetchTopHeadlines();
       setArticles(topArticles);
+      setIsSearchActive(false);
     } catch (error) {
       console.error("Error fetching top news:", error.message);
     }
@@ -37,21 +43,26 @@ const HomePage = () => {
 
   const fetchSearchArticles = async (query) => {
     try {
-      const searchArticles = await fetchArticlesBySearch(query, filters);
+      setIsSearchActive(true);
+      const searchArticles = await fetchAggregatedArticles(query, filters);
       setArticles(searchArticles);
     } catch (error) {
-      console.error("Error fetching search articles:", error.message);
+      console.error(
+        "Error fetching aggregated search articles:",
+        error.message
+      );
     }
   };
 
   const fetchCategoryArticles = async (currentFilters) => {
+    const { category } = currentFilters;
     try {
-      const { category } = currentFilters;
       if (category) {
         const categoryArticles = await fetchArticlesByCategory({ category });
         setArticles(categoryArticles);
       } else {
         console.warn("No category selected.");
+        fetchTopNews();
       }
     } catch (error) {
       console.error("Error fetching category articles:", error.message);
@@ -59,7 +70,7 @@ const HomePage = () => {
   };
 
   const handleSearch = (query) => {
-    setFilters({ ...filters, category: "" });
+    setFilters({ ...filters });
     fetchSearchArticles(query);
   };
 
@@ -73,7 +84,6 @@ const HomePage = () => {
         <SearchBar onSearch={handleSearch} />
         <FilterPanel onFilter={handleFilter} />
       </div>
-
       <NewsFeed articles={articles} />
     </div>
   );
